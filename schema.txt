@@ -1,0 +1,82 @@
+type Query {
+    hello: String
+    admin: AdminUser
+    appUsers: [AppUser]
+    user(id: Int): AppUser
+    filterUsersWithArgs(name: String, status: UserStatus): [AppUser]
+}
+type Mutation {
+    addUser(user: UserInput): AppUser
+    addTask(task: TaskInput): Task
+    addTaskComment(comment: CommentInput): Comment
+}
+
+interface User {
+    id: ID!
+    first_name: String!
+    last_name: String!
+    email: String!
+}
+
+enum UserStatus {
+    REGISTERED
+    ACTIVE
+    INACTIVE
+}
+enum TaskStatus {
+    OPEN
+    INPROGRESS
+    COMPLETED
+}
+
+type AppUser implements User {
+    id: ID!
+    first_name: String!
+    last_name: String!
+    email: String!
+    
+    age: Int!
+    status: UserStatus!
+    tasks: [Task!]
+}
+type AdminUser implements User {
+    id: ID!
+    first_name: String!
+    last_name: String!
+    email: String!
+    
+    is_admin: Boolean
+    status: UserStatus!
+}
+
+type Task {
+    id: ID!
+    title: String!
+    description: String!
+    status: TaskStatus!
+    comments: [Comment!]!
+}
+
+type Comment {
+    id: ID!
+    text: String!
+    author_id: Int!
+    author: AppUser!
+}
+
+input UserInput {
+    first_name: String!
+    last_name: String!
+    email: String!
+    age: Int!
+}
+input TaskInput {
+    title: String!
+    description: String!
+    user_id: Int!
+}
+input CommentInput {
+    task_id: Int!
+    author_id: Int!
+    text: String!
+}

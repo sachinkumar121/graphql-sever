@@ -1,0 +1,167 @@
+=== Queries Start ===
+query GeneralQueries {
+  hello
+}
+query UserQueries {
+  admin {
+    id
+    first_name
+    last_name
+    email
+  }
+  appUsers {
+    ...userFields
+    age
+  }
+  genericUser(id: 120) {
+    __typename
+    ... on AppUser {
+      first_name
+      last_name
+    }
+    ... on AdminUser {
+      email
+    }
+  }
+  # Giving the Alias
+  firstUser: user(id: "121") {
+    ...userFields
+  }
+  secondUser: user(id: "122") {
+    ...userFields
+  }
+  filterUsersWithArgs(name: "Sachin", status: ACTIVE) {
+    ...userFields
+  }
+}
+# Filter app user with variables.
+query UserFilter($name: String, $status: UserStatus = ACTIVE, $withTasks: Boolean = false) {
+  filterUsersWithArgs(name: $name, status: $status) {
+    ...userFields
+    tasks @include(if: $withTasks) {
+      title
+      description
+      comments {
+        text
+        author {
+          ...userFields
+        }
+        author_id
+      }
+    }
+  }
+}
+
+mutation CreateAppUser($user: UserInput) {
+  addUser(user: $user) {
+    ...userFields
+  }
+}
+mutation createUserTask($task: TaskInput) {
+  addTask(task: $task) {
+    id
+    title
+    description
+  }  
+}
+mutation createTaskComment($comment: CommentInput) {
+  addTaskComment(comment: $comment) {
+    text
+    author {
+      ...userFields
+    }
+    author_id
+  }
+}
+
+# create userFields fragment and stop repeat your self.
+fragment userFields on User {
+	id
+  first_name
+  last_name
+  email
+}
+=== Queries End ===
+
+
+=== Queries Variables Start ===
+
+{
+  "user": {
+    "first_name": "Prince",
+    "last_name": "sharma",
+    "email": "prince1@yopmail.com",
+    "age": 27
+  },
+  "task": {
+    "title": "install Node.js 16 version",
+    "description": "This is the first task",
+    "user_id": 121
+  },
+  "name": "Sachin",
+  "withTasks": true,
+  "comment": {
+    "task_id": 121001,
+    "text": "node.js is installed same here",
+    "author_id": 122
+  }
+}
+
+=== Queries Variables End ===
+
+=== Old Queries Start ===
+
+# give the name to operation.
+query Generic {
+	hello
+  # set alias to user as primaryUser
+  primaryUser: user(id: "121") {
+    # use Fragment for fields selection.
+    ...comparisonFields
+    dob
+  }
+  # set alias to user as secondaryUser
+  secondaryUser: user(id: "122") {
+    ...comparisonFields
+  }
+}
+
+# use variable in operation
+# declare $filter as String type as variable.
+query SearchUsers($filter: String) {
+  filterUsers(filter: $filter) {
+    first_name
+  }
+}
+
+query loggedInUser {
+  me: user(id: "122") {
+    ...comparisonFields
+  }
+}
+fragment comparisonFields on User {
+    first_name
+    last_name
+    email
+}
+# add a new user.
+mutation createUser($user: UserInput) {
+  addUser(user: $user) {
+    first_name
+  }
+}
+
+=== Old Queries End ===
+
+
+=== Old Query variable Start ===
+{
+  "filter": "Sachin",
+  "user": {
+    "first_name": "Amit",
+    "last_name": "Kumar",
+    "email": "amit@yopmail.com",
+    "dob": "1"
+  }
+}
+=== Old Query variable End ===

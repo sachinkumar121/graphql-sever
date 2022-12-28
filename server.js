@@ -2,6 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import { graphqlHTTP } from 'express-graphql';
 import Schema from "./schema.js"; 
+import { loads, users, posts} from "./mock-data.js"; 
 process.setMaxListeners(0);
 
 var app = express();
@@ -13,29 +14,6 @@ var corsOptions = {
 };
 app.use(cors(corsOptions));
 
-const loads = [
-  {
-    "id": 1904,
-    "label": "LOAD #1904",
-    "source": "philadelphia 1",
-    "destination": "chicago 1",
-    "miles": "1280"
-  },
-  {
-    "id": 1905,
-    "label": "LOAD #1905",
-    "source": "philadelphia 2",
-    "destination": "chicago 2",
-    "miles": "1080"
-  },
-  {
-    "id": 1906,
-    "label": "LOAD #1906",
-    "source": "philadelphia 3",
-    "destination": "chicago 3",
-    "miles": "1080"
-  }
-];
 app.get('/loads', (req, res) => {
   res.json({loads});
 });
@@ -43,6 +21,15 @@ app.get('/loads', (req, res) => {
 app.get('/loads/:id', (req, res) => {
   let load = loads.find(l => l.id == req.params.id);
   res.json({load});
+});
+
+app.get('/users', (req, res) => {
+  res.json({users});
+});
+
+app.get('/users/:id', (req, res) => {
+  let user = users.find(l => l.id == req.params.id);
+  res.json({user});
 });
 
 app.use('/graphql', graphqlHTTP({

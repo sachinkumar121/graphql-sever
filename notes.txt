@@ -1,0 +1,321 @@
+Introduction
+    - a query language for your api. it fulfill those query with your existing data.
+    - GraphQL provides a complete and understandable description of the data in your API, gives clients the power to ask for exactly what they need and nothing more, makes it easier to evolve APIs over time, and enables powerful developer tools.
+    - Add new fields and types to your GraphQL API without impacting existing queries. Aging fields can be deprecated and hidden from tools. By using a single evolving version, GraphQL APIs give apps continuous access to new features and encourage cleaner, more maintainable server code.
+    - in graphQL, we describe the data like typescript. in our case we define the user type.
+        type User {
+            id: Integer
+            first_name: String
+            last_name: String
+            friends: [User]
+        }
+    - graphQL has single URL, and we call this url to get the data so we ask for the data in the json format like. In our case we ask from graphQL server to give the information about user whose id is 121 and return only first_name and last_name. So we get predictable result.
+        {
+            user(id: 121) {
+                first_name
+                last_name
+            }
+        }
+    - Apps(mobile, web) using GraphQL are fast and stable because they control the data they get, not the server.
+    - we can in-future ask for email of the user, that can possible easy to do. and stable means as we know the api url can be change and we have to upate the app information accordingly, but in case of graphQL there is no kind of restrictions.
+    - GraphQL queries access not just the properties of one resource but also smoothly follow references between them. While typical REST APIs require loading from multiple URLs, GraphQL APIs get all the data your app needs in a single request. Apps using GraphQL can be quick even on slow mobile network connections.
+    - GraphQL APIs are organized in terms of types and fields, not endpoints.
+    - you can Add new fields and types to your GraphQL API without impacting existing queries. and also declare the deprecated fields by using decorator.
+    - GraphQL creates a uniform API across your entire application without being limited by a specific storage engine. Write GraphQL APIs that leverage your existing data and code with GraphQL engines available in many languages. You provide functions for each field in the type system, and GraphQL calls them with optimal concurrency.
+
+Basic
+    - GraphQL is a query language for your API, and a server-side runtime for executing queries using a type system you define for your data. even though your query is also a type. 
+    - GraphQL isn't tied to any specific database or storage engine and is instead backed by your existing code and data.
+
+Queries and Mutations
+    - Fields
+        - By default the type of request is "query" so we can skip the "query" keyword.
+        - to get the user with their email and name the query will look like
+            {
+                user {
+                    email
+                    name
+                    friends {
+                        name
+                    }
+                }
+            }
+        - the query fields can also refer to an object. like we need friends of a user and their name only.
+    - Arguments
+        - we can also pass the argument in query fields like we did usually in functions. searching for user whose id is 121.
+            {
+                user(id: "121") {
+                    name
+                    email
+                    height(unit: FOOT)
+                }
+            }
+        - we can pass argument on each field and even use as transform like we asking the height of the user in foot. we can define our own custom type.
+    - Aliases
+        - the response not include the argument.
+        - let say, we need to get the user with id 121, 122 that is not possible in one query. 
+            {
+                user(id: 121) {}
+                user(id: 122) {}
+            }
+        - so we have to use alias like
+            {
+                primaryUser: user(id: 121) {}
+                secondaryUser: user(id: 122) {}
+            }
+    - Fragments
+        - like a list of query fields that we don't want to repeat and it can help where we need to compare two users at a time.
+        - You will need to define the Fragments as while query the data. like
+            query {
+                hello
+                primaryUser: user(id: "121") {
+                    ...comparisonFields
+                    dob
+                }
+                secondaryUser: user(id: "122") {
+                    ...comparisonFields
+                }
+            }
+            fragment comparisonFields on User {
+                first_name
+                last_name
+                email
+            }
+        - You can also pass extra fields other than fragment like 'dob'
+    - Operation name
+        - we can assign the query as type and Operation to name like
+            query UserNameAndFriends {
+                user {
+                    name
+                    friends {
+                        name
+                    }
+                }
+            }
+        - it is very helpful for debugging and server-side logging.
+        - GraphQL query and mutation names, along with fragment names, can be a useful debugging tool on the server side to identify different GraphQL requests.
+    - Variables
+        - Operations like search, filter, It wouldn't be a good idea to pass these dynamic arguments directly in the query string, because then our client-side code would need to dynamically manipulate the query string at runtime, and serialize it into a GraphQL-specific format. Instead, GraphQL has a first-class way to factor dynamic values out of the query, and pass them as a separate dictionary. These values are called variables.
+        - Variables are defined with Operation name, $ as prefix and with type like
+            query SearchUsers($filter: String) {
+                filterUsers(filter: $filter) {}
+            }
+        - All declared variables must be either scalars, enums, or input object types.
+        - Variable definitions can be optional or required. place ! if you need the variable should required.
+        - Default values can also be assigned to the variables in the query by adding the default value after the type declaration. like
+            query SearchUsers($filter: String = "Sachin") {}
+        - When default values are provided for all variables, you can call the query without passing any variables. If any variables are passed as part of the variables dictionary, they will override the defaults.
+    - Directives
+        - let suppose we have a UI component that has a summarized and detailed view, where one includes more fields than the other.
+        - graphQL support two directives @include and @skip.
+        - @include(if: Boolean) Only include this field in the result if the argument is true.
+        - @skip(if: Boolean) Skip this field if the argument is true.
+        - example
+            # withFriends is required.
+            query User($withFriends: Boolean!) {
+                user() {
+                    name
+                    friends @include(if: $withFriends) {
+                        name
+                    }
+                }
+            }
+    - Mutations
+        - to add the data to the server we use Mutations type query.
+        - example
+            # add a new user.
+            mutation createUser($user: UserInput) {
+                addUser(user: $user) {
+                    first_name
+                    last_name
+                    email
+                }
+            }
+            # query variable
+            {
+                "user": {
+                    "first_name": "Amit",
+                    "last_name": "Kumar",
+                    "email": "amit@yopmail.com"
+                }
+            }
+        - query fields are executed in parallel.
+        - mutation fields run in series, one after the other. so there will be no race condition. like increment cart's item quantity.
+    - Inline Fragments
+        - some time we want to place a condition on a fragment to be include based on field value type.
+        hero(episode: $ep) {
+            name
+            __typename
+            ... on Droid {
+                primaryFunction
+            }
+            ... on Human {
+                height
+            }
+        }
+        - hero object will return name and type of Hero is Character which might be either a Human or a Droid depending on the episode argument.
+        - To ask for a field on the concrete type, you need to use an inline fragment with a type condition. Because the first fragment is labeled as ... on Droid, the primaryFunction field will only be executed if the Character returned from hero is of the Droid type. Similarly for the height field for the Human type.
+        - some situations where you don't know what type you'll get back from the GraphQL service, you need some way to determine how to handle that data on the client. GraphQL allows you to request __typename, a meta field, at any point in a query to get the name of the object type at that point.
+
+Schemas and Types
+    - schema is used to give the answer to the following questions
+        - what fields can we select?
+        - What kinds of objects might they return? 
+        - What fields are available on those sub-objects?
+    - so when we ask for data, query are validated and executed against that schema.
+    - The most basic components of a GraphQL schema are object types, which just represent a kind of object you can fetch from your service, and what fields it has. 
+    - example
+        # User is a GraphQL Object Type
+        type User {
+            first_name: String! # fields on the User type. first_name can't be null.
+            last_name: String # built-in scalar types. can be nullable.
+            email: String
+            dob: String
+            friends: [User!]!
+        }
+    - [User!]! represents an array of User objects. Since it is also non-nullable, you can always expect an array (with zero or more items) when you query the friends field. And since User! is also non-nullable, you can always expect every item of the array to be an User object.
+    - Arguments
+        - Every field on a GraphQL object type can have zero or more arguments.
+            type User {
+                dob(format: DateFormat = DMY): String
+            }
+        - we have to pass the name as argument will not works like orders works in other languages.
+        - to set the argument as optional just provide the default value like 'DMY' in our case.
+    - The Query and Mutation types
+        - These are two special type provided by graphQL.
+        - mutation is defined same as query type.
+    - Scalar types
+        - this type is used for specify Int, Float, String, Boolean and ID type fields.
+        - the ID type represents a unique identifier, often used to refetch an object or as the key for a cache. The ID type is serialized in the same way as a String; however, defining it as an ID signifies that it is not intended to be human‐readable.
+        - you can also define your custom scalar value like `scalar Date`
+    - Enumeration types
+        - a special kind of scalar that is restricted to a particular set of allowed values.
+        - example
+            enum Gender {
+                MALE
+                FEMALE
+                OTHER
+            }
+    - Lists and Non-Null
+        - adding an exclamation mark after the type name, means, that field should not be a nullable.
+        - exclamation mark can also be used in arguments.
+        - wrapping the type in square brackets return an array for that field type.
+    - Interfaces
+        - An Interface is an abstract type that includes a certain set of fields that a type must include to implement the interface. Type that implement interface can have extra fields as well.
+        - example
+            interface User {
+                first_name: String!
+                last_name: String!
+                email: String!
+                dob: String!
+                friends: [String!]!
+            }
+            # implement the interface
+            type Admin implements User {
+                first_name: String!
+                last_name: String!
+                email: String!
+                dob: String!
+                friends: [String!]!
+                roles: [String!]!
+            }
+        - to maintain the consistency, we can use interface as variable so will give you the consistent result on different types.
+    - Union types
+        - Union types are very similar to interfaces, but they don't get to specify any common fields between the types.
+        - example
+            union SearchResult = User | Admin | Writer
+        - Wherever we return a SearchResult type in our schema, we might get a User, a Admin, or a Writer. Note that members of a union type need to be concrete object types; you can't create a union type out of interfaces or other unions.
+    - Input Type
+        - to pass the value as object or use the value for creating a new resource.
+        - the type of this kind is 'input'
+        - example
+            input UserInput {
+                first_name: String
+                last_name: String
+                email: String
+                dob: String
+            }
+
+validation
+    - By using the type system, it can be predetermined whether a GraphQL query is valid or not. This allows servers and clients to effectively inform developers when an invalid query has been created, without having to rely on runtime checks.
+    - A fragment cannot refer to itself or create a cycle, as this could result in an unbounded result!
+        fragment userFields on AppUser {
+            id
+            first_name
+            last_name
+            friends {
+                ...userFields
+            }
+        }
+    - we can't query a field which is not exists on a type like.
+        {
+            appUsers {
+                id
+                dob // not exists
+            }
+        }
+    - Whenever we query for a field and it returns something other than a scalar or an enum, we need to specify what data we want to get back from the field. like admin return AdminUser. so that is not a scalar value. we need to specify field while query.
+        {
+            admin {
+                id
+                first_name
+            }
+        }
+    - in case of scalar value we can directly query the field like.
+        {
+            hello
+        }
+    - if a field is a scalar, it doesn't make sense to query for additional fields on it, and doing so will make the query invalid
+        {
+            hello {
+                id
+            }
+        }
+    - named fragments were valuable above when we used them multiple times, but we're only using this one once. Instead of using a named fragment, we can use an inline fragment; this still allows us to indicate the type we are querying on, but without naming a separate fragment.
+
+Execution
+    - 
+
+server side
+    On server side, There can be only one type named "Query", "Mutation".
+client side
+    On frontend, while running query, the keyword "Query" is optional and by default it is query.
+    If you define keyword "query" then you have to give the name of the query.
+    The "mutation" keyword is required and you have to give the name of the mutation.
+- query field are case sensitive. if on the server side we have `appUsers` then we can't ask for `appusers`. we need to send excat keyword.
+
+Overcome from APIs
+    - multiple endpoints so more round robin.
+    - deep nested query not possible.
+    - you can only pass a single set of arguments - the query parameters and URL segments in your request. But in GraphQL, every field and nested object can get its own set of arguments, making GraphQL a complete replacement for making multiple API fetches.
+
+/api/v1
+/me
+/user/121
+
+{
+    data: {
+        user: {
+            "id": 121,
+            "first_name": "sachin",
+            "last_name": "kumar",
+            "email": "sachin@test.com",
+            "created_at": "",
+            "created_at": ""
+        }
+    }
+}
+
+{
+    user(id: 121) {
+        first_name
+        last_name
+    }
+}
+
+Questions
+    - issue with inline-fragments so didn't implement in user type.
+    - also didn't use __typename field because of above issue.
+    - issue with the Interfaces. Can't able to return an interface or a union type from a field in the schema due to an error.
+    - have to work with Union types as well. so need to understand the type should return for `user(id: Int): AppUser`.
+    - 
