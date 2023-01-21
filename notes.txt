@@ -274,48 +274,211 @@ validation
     - named fragments were valuable above when we used them multiple times, but we're only using this one once. Instead of using a named fragment, we can use an inline fragment; this still allows us to indicate the type we are querying on, but without naming a separate fragment.
 
 Execution
-    - 
+    - After being validated, a GraphQL query is executed by a GraphQL server which returns a result that mirrors the shape of the requested query, typically as JSON.
+    - Each field on each type is backed by a function called the resolver which is provided by the GraphQL server developer.
+    - When a field is executed, the corresponding resolver is called to produce the next value.
+    - If a field produces a scalar value like a string or number, then the execution completes. However if a field produces an object value then the query will contain another selection of fields which apply to that object. This continues until scalar values are reached. GraphQL queries always end at scalar values.
+    - At the top level of every GraphQL server is a type that represents all of the possible entry points into the GraphQL API, it's often called the Root type or the Query type.
+    - for eg., looking for user i.e user(id: Int). so resolver fn. will connect the db and search the user by that id. The operation can be Asynchronous, so resolver will wait the user object and further graphQL server can ask for name or other fields.
+    - Now that a User object is available, GraphQL execution can continue with the fields requested on it.
+    - A GraphQL server is powered by a type system which is used to determine what to do next. Even before the user field returns anything, GraphQL knows that the next step will be to resolve fields on the User type since the type system tells it that the user field will return a User.
+    - In fact, many GraphQL libraries will let you omit resolvers this simple and will just assume that if a resolver isn't provided for a field, that a property of the same name should be read and returned.
+    - fields can be resolved concurrently like name, email, tasks and so on.
+    - scalar coercion means enums are defined in type system of graphQL but the api server can return somekind of string, so while resolving we can get numbers like. 
+        enums Status = ACTIVE|InACTIVE
+        {
+            status: 0/1
+        }
+    - List resolvers - graphQL server will wait for the list to be resolved. like a user object in database can have tasks id in tasks field. but our type system will return Task type for eah task. So graphQL server will wait for all promises to be resolved. example(resolver for tasks will load task from db one by one)
+        {
+            id: 121,
+            name: 'sachin',
+            tasks: [12001, 12002]
+        }
+    - As each field is resolved, the resulting value is placed into a key-value map with the field name (or alias) as the key and the resolved value as the value. This continues from the bottom leaf fields of the query all the way back up to the original field on the root Query type.
 
-server side
-    On server side, There can be only one type named "Query", "Mutation".
-client side
-    On frontend, while running query, the keyword "Query" is optional and by default it is query.
-    If you define keyword "query" then you have to give the name of the query.
-    The "mutation" keyword is required and you have to give the name of the mutation.
-- query field are case sensitive. if on the server side we have `appUsers` then we can't ask for `appusers`. we need to send excat keyword.
+Introspection
+    - by querying the __schema field, we can determine what type are available.
+    - example
+        {
+            __schema {
+                types {
+                    name
+                    description
+                }
+            }
+        }
+    - it will return built-in scalars type like Int, Boolean and custom defined types like User, UserInput.
+    - the name which are start with double underscore indicate they are part of the introspection system.
+    - we can also interspect further information eg.,
+        {
+            __type(name: "User") {
+                name
+                kind
+                description
+
+                fields {
+                    name
+                    deprecationReason
+                    type {
+                        name
+                        kind
+                    }
+                }
+            
+            }
+        }
+
+Thinking in Graphs
+    - With GraphQL, you model your business domain as a graph by defining a schema; within your schema, you define different types of nodes and how they connect/relate to one another.
+    - make a shareable language and think the problem an business logic before write your schema. like an email application. and think some queries.
+    - all entry points (REST, GraphQL, and RPC) into the system should be processed with the same validation, authorization, and error handling rules.
+    - for working with Legacy Data, build a schema and find out the data consume by the current users.
+
+Serving over HTTP
+    - GraphQL should be placed after all authentication middleware, so that you have access to the same session and user information you would in your HTTP endpoint handlers.
+    - Your GraphQL HTTP server should handle the HTTP GET and POST methods.
+    - When receiving an HTTP GET request, the GraphQL query should be specified in the "query" query string. like http://myapi/graphql?query={me{name}}
+    - A standard GraphQL POST request should use the application/json content type, and include a JSON-encoded body of the following form:
+        {
+            "query": "...",
+            "operationName": "...",
+            "variables": { "myVariable": "someValue", ... }
+        }
+    - response example
+        {
+            "data": { ... },
+            "errors": [ ... ]
+        }
+    - If there were no errors returned, the "errors" field should not be present on the response. If no data is returned, the "data" field should only be included if no errors occurred during execution.
+
+Authorization
+    - we should having a single source of truth for authorization. however we can define the Authorization logic in the resolver of a field as well, but we need to repeat everywhere.
+
+Pagination
+    - basically, we can get relationship data like friends of a user by using Plurals relationship, and slice the data by passing the arguments to the friends fields.
+    - There are a number of ways we could do pagination:
+        - We could do something like friends(first:2 offset:2) to ask for the next two in the list.
+        - We could do something like friends(first:2 after:$friendId), to ask for the next two after the last friend we fetched.
+        - We could do something like friends(first:2 after:$friendCursor), where we get a cursor from the last item and use that to paginate.
+    - cursor is a property of the connection, not of the object. So we might want to introduce a new layer of indirection; our friends field should give us a list of edges, and an edge has both a cursor and the underlying node:
+        friends(first:2) {
+            edges {
+                node {
+                    name
+                }
+                cursor
+            }
+        }
+    - for solving the issue of total counts and when should stop paginate, our friends field can return a connection object. The connection object will then have a field for the edges, as well as other information (like total count and information about whether a next page exists)
+        {
+            user {
+                name
+                friends(first:2) {
+                    totalCount
+                    edges {
+                        node {
+                            name
+                        }
+                        cursor
+                    }
+                    pageInfo {
+                        endCursor
+                        hasNextPage
+                    }
+                }
+            }
+        }
+
+Global Object Identification
+    - GraphQL servers need to expose object identifiers in a standardized way.
+    - There should be an interface Node and a resolver for node field at root level.
+        # An object with a Globally Unique ID
+        interface Node {
+            # The ID of the object.
+            id: ID!
+        }
+    - The server must provide a root field called node that returns the Node interface. This root field must take exactly one argument, a non-null ID named id.
+    - If a query returns an object that implements Node, then this root field should refetch the identical object when value returned by the server in the Node's id field is passed as the id parameter to the node root field. or may be return null
+    - If two objects appear in a query, both implementing Node with identical IDs, then the two objects must be equal. scalar value can be checked using == operator, enum by checking if return same enum value and object can be checked deeply accordingly.
+    - to make plural identifying root fields, ther server should expose root fields that accept a list of input arguments, and returns a list of responses
+    - Plural identifying root fields must have a single argument. The type of that argument must be a non-null list of non-nulls. In our usernames example, the field would take a single argument named usernames, whose type (using our type system shorthand) would be [String!]!.
+    - The return type of a plural identifying root field must be a list, or a non-null wrapper around a list. The list must wrap the Node interface, an object that implements the Node interface, or a non-null wrapper around those types.
+    - Whenever the plural identifying root field is used, the length of the list in the response must be the same as the length of the list in the arguments. Each item in the response must correspond to its item in the input;
+    - Because of this, servers are advised to not have the response type wrap a non-null wrapper, because if it is unable to fetch the object for a given entry in the input, it still must provide a value in the output for that input entry; null is a useful value for doing so.
+
+Caching
+    - In GraphQL, though, there's no URL-like primitive that provides this globally unique identifier for a given object. It's hence a best practice for the API to expose such an identifier for clients to use.
+    - If the backend uses something like UUIDs for identifiers, then exposing this globally unique ID may be very straightforward! If the backend doesn't have a globally unique ID for every object already, the GraphQL layer might have to construct this.
+    - GraphQL API can expose the previous API's IDs in a separate field to make compatible with existing APIs.
+    - The really critical functionality that the client needs is the ability to derive a globally unique identifier for their caching. While having the server derive that ID simplifies the client, the client can also derive the identifier. Oftentimes, this would be as simple as combining the type of the object (queried with __typename) with some type-unique identifier.
+    - Additionally, if replacing an existing API with a GraphQL API, it may be confusing if all of the fields in GraphQL are the same except id, which changed to be globally unique. This would be another reason why one might choose not to use id as the globally unique field.
+
+Quick Overview
+    - first of all we need to define/build schema and under schema we will define one Query type and one Mutation type.
+        type Query {}
+        type Mutation {}
+    - we will also define different custom types like
+        type User {}
+    - if we want to insert/update the data then we will need to define the input like
+        input UserInput {}
+    - On server side, There can be only one type named "Query", "Mutation".
+    - under rootValue object we will need to define the resolver function of each Query's object key and Mutation's object key.
+    - in some cases, we also need to define the resolver function for each field of a type like we can have user_name, user_age functions.
+    - Query and Mutation are pre-defined type. 
+    - every type declare syntax is
+        type NameOfType(Query, Mutation, or custom)
+    - On frontend, we will have operations like query, mutation and subscriptions.
+    - On frontend(client side), while running query, the keyword "Query" is optional and by default it is query.
+        { hello }
+    - If you define keyword "query" then you can give the name of the query(optional).
+        query { hello }
+        query General { hello }
+    - On frontend(client side), the "mutation" keyword is required and you have to give the name of the mutation.
+    - query field are case sensitive. if on the server side we have `appUsers` then we can't ask for `appusers`. we need to send excat keyword.
+    - the output will always have "data" keyword. like
+        {
+            "data": {
+                "me": {
+                    "id": 121
+                }
+            }
+        }
+    - 
 
 Overcome from APIs
     - multiple endpoints so more round robin.
     - deep nested query not possible.
     - you can only pass a single set of arguments - the query parameters and URL segments in your request. But in GraphQL, every field and nested object can get its own set of arguments, making GraphQL a complete replacement for making multiple API fetches.
 
-/api/v1
-/me
-/user/121
+    /api/v1
+    /me
+    /user/121
 
-{
-    data: {
-        user: {
-            "id": 121,
-            "first_name": "sachin",
-            "last_name": "kumar",
-            "email": "sachin@test.com",
-            "created_at": "",
-            "created_at": ""
+    {
+        data: {
+            user: {
+                "id": 121,
+                "first_name": "sachin",
+                "last_name": "kumar",
+                "email": "sachin@test.com",
+                "created_at": "",
+                "created_at": ""
+            }
         }
     }
-}
 
-{
-    user(id: 121) {
-        first_name
-        last_name
+    {
+        user(id: 121) {
+            first_name
+            last_name
+        }
     }
-}
 
 Questions
+    - how to deprecated or hide a field.
     - issue with inline-fragments so didn't implement in user type.
     - also didn't use __typename field because of above issue.
     - issue with the Interfaces. Can't able to return an interface or a union type from a field in the schema due to an error.
     - have to work with Union types as well. so need to understand the type should return for `user(id: Int): AppUser`.
-    - 
+    - what if we have same name for both Query and Mutation. so how we can set different root value for both things.

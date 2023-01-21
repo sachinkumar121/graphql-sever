@@ -1,120 +1,56 @@
 import express from "express";
-import { graphqlHTTP } from "express-graphql";
 import { buildSchema } from "graphql";
+import { graphqlHTTP } from "express-graphql";
 
-const UserStatuses = Object.freeze({
-    "registered": "REGISTERED",
-    "active": "ACTIVE",
-    "inactive": "INACTIVE"
-});
-const users = [
-    {
-        "id": 120,
-        "first_name": "Admin",
-        "last_name": "Kumar",
-        "email": "admin@yopmail.com",
-        "dob": "1980-01-01",
-        "age": 42,
-        "is_admin": true,
-        "status": UserStatuses['active']
-    },
-    {
-        "id": 121,
-        "first_name": "Sachin",
-        "last_name": "Kumar",
-        "email": "sachin@yopmail.com",
-        "dob": "1994-01-01",
-        "age": 28,
-        "status": UserStatuses['active'],
-        "tasks": []
-    },
-    {
-        "id": 122,
-        "first_name": "Sumit",
-        "last_name": "Kumar",
-        "email": "sumit@yopmail.com",
-        "dob": "1992-01-01",
-        "age": 30,
-        "status": UserStatuses['active'],
-        "tasks": []
-    },
-    {
-        "id": 123,
-        "first_name": "Akash",
-        "last_name": "Kumar",
-        "email": "akash@yopmail.com",
-        "dob": "1993-01-01",
-        "age": 29,
-        "status": UserStatuses['inactive'],
-        "tasks": []
-    },
-    {
-        "id": 124,
-        "first_name": "Ravi",
-        "last_name": "Kumar",
-        "email": "ravi@yopmail.com",
-        "dob": "1991-01-01",
-        "age": 31,
-        "status": UserStatuses['registered'],
-        "tasks": []
-    }
-];
-
-var schema = buildSchema(`
-    type Query {
-        user(id: Int): AppUser
-    }
-    interface User {
-        id: ID!
-        first_name: String!
-        last_name: String!
-        email: String!
-    }
-    enum UserStatus {
-        REGISTERED
-        ACTIVE
-        INACTIVE
-    }
-
-    type AppUser implements User {
-        id: ID!
-        first_name: String!
-        last_name: String!
-        email: String!
-    
-        age: Int!
-        status: UserStatus!
-    }
-    type AdminUser implements User {
-        id: ID!
-        first_name: String!
-        last_name: String!
-        email: String!
-    
-        is_admin: Boolean
-        status: UserStatus!
-    }
-`);
-
-var root = {
-    user: function ({id}) {
-        let user = users.find(u => u.id == id);
-        return user;
-    },
-}
-
-var app = express();
-
-// for testing purposes.
-app.get('/', (req, res) => {
-    return res.send("Hello World!");
-});
+const app = express();
 
 app.use('/graphql', graphqlHTTP({
-    schema,
-    rootValue: root,
-    pretty: true,
-    graphiql: true
-}))
+    schema: buildSchema(`
+        type Query {
+            hello: String
+            me: User
+            user(id: Int!): User
+            allUsers(sort: SortType = Date): [User!]!
+        }
+        type Mutation {
+            addUser(user: UserInput): User
+        }
+        input UserInput {
+            name: String!
+            age: Int!
+        }
+        type User {
+            id: Int
+            name: String
+            age: Int
+        }
+        enum SortType {
+            Date
+            Age
+        }
+    `),
+    rootValue: {
+        hello: () => 'Hello World!',
+        me: () => ({'id': 121, 'name': 'Sachin Kumar', age: 23}),
+        user: ({id}) => ({id, 'name': 'Search Kumar', age: 23}),
+        allUsers: ({sort}) => {
+            console.log(`sort by ${sort}`);
+            return [{'id': 121, 'name': 'Sachin Kumar', age: 23}, {'id': 122, 'name': 'Sumit Kumar', age: 24}]
+        },
+        addUser: ({user}) => {
+            // add user to DB and return.
+            return {
+                id: 342,
+                ...user
+            }
+        }
+    },
+    graphiql: true,
+    pretty: true
+}));
+
+app.get('/', function(req, res) {
+    return res.send('working');
+});
 
 app.listen(4000, () => console.log('Graphql Server is browse to http://localhost:4000/graphql'));

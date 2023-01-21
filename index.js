@@ -161,7 +161,7 @@ app.use('/graphql', graphqlHTTP({
     schema,
     rootValue: root,
     pretty: true,
-    graphiql: true
+    graphiql: process.env.NODE_ENV === 'development'
 }))
 
 app.listen(4000, () => console.log('Graphql Server is browse to http://localhost:4000/graphql'));
